@@ -66,6 +66,11 @@ func (c *Context) Shutdown() {
 	}
 }
 
+func (c *Context) ShutdownErr(err error) {
+	fmt.Printf("Shutting down due to unrecoverable error: %s\n", err)
+	c.Shutdown()
+}
+
 func NewContext() *Context {
 	return &Context{
 		config:       config(),

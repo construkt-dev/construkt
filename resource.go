@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-type Resource[T any] struct {
+type Resource[T HasMeta] struct {
 	ResourceMeta
 	versions map[string]ResourceVersion[T]
 }
@@ -26,7 +26,7 @@ type ResourceNames struct {
 	listKind   string
 }
 
-type ResourceVersion[T any] struct {
+type ResourceVersion[T HasMeta] struct {
 	ResourceVersionMeta
 }
 
@@ -37,7 +37,7 @@ type ResourceVersionMeta struct {
 	schema  v1.JSONSchemaProps
 }
 
-func NewResource[T any](api, kind, version string, resource T, opts ...CustomResourceOpt) *Resource[T] {
+func NewResource[T HasMeta](api, kind, version string, resource T, opts ...CustomResourceOpt) *Resource[T] {
 	singular := strings.ToLower(kind)
 
 	meta := ResourceMeta{
@@ -106,6 +106,6 @@ func (r *Resource[T]) ResourceId() string {
 	return fmt.Sprintf("%s.%s/%s", r.names.plural, r.gvk.Group, r.gvk.Version)
 }
 
-func (r *Resource[T]) RunManagedReconciler(ctx *Context, p ReconcileFunc[T]) {
+func (r *Resource[T]) RunReconciler(ctx *Context, p ReconcileFunc[T]) {
 	RunManagedReconciler[T](ctx, r, p)
 }

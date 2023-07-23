@@ -2,12 +2,12 @@ package construkt
 
 import "k8s.io/apimachinery/pkg/watch"
 
-type Watch[T any] interface {
+type Watch[T HasMeta] interface {
 	ResultChan() <-chan Event[T]
 	Stop()
 }
 
-type watchWrapper[T any] struct {
+type watchWrapper[T HasMeta] struct {
 	watch   watch.Interface
 	results chan Event[T]
 }
@@ -37,13 +37,13 @@ func (w *watchWrapper[T]) run() {
 			}
 			w.results <- Event[T]{
 				Type:   event.Type,
-				Object: event.Object.(*Object[T]),
+				Object: event.Object.(*object[T]),
 			}
 		}
 	}
 }
 
-func newWatch[T any](actual watch.Interface) Watch[T] {
+func newWatch[T HasMeta](actual watch.Interface) Watch[T] {
 	w := &watchWrapper[T]{
 		results: make(chan Event[T]),
 		watch:   actual,
@@ -52,7 +52,7 @@ func newWatch[T any](actual watch.Interface) Watch[T] {
 	return w
 }
 
-type Event[T any] struct {
+type Event[T HasMeta] struct {
 	Type   watch.EventType
-	Object *Object[T]
+	Object *object[T]
 }

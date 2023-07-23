@@ -6,37 +6,38 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-type Reconciler[T any] interface {
-	Reconcile(obj *Object[T]) error
+type Reconciler[T HasMeta] interface {
+	Reconcile(obj T) error
 }
 
-type ReconcileFunc[T any] func(obj *Object[T]) ([]Object[any], error)
+type ReconcileFunc[T HasMeta] func(obj T) ([]HasMeta, error)
 
-func RunManagedReconciler[T any](ctx *Context, cr ClientProvider[T], fn ReconcileFunc[T]) {
+func RunManagedReconciler[T HasMeta](ctx *Context, cr ClientProvider[T], fn ReconcileFunc[T]) {
 	RunReconciler[T](ctx, cr, &managedReconciler[T]{
 		fn: fn,
 	})
 }
 
-type managedReconciler[T any] struct {
+type managedReconciler[T HasMeta] struct {
 	fn ReconcileFunc[T]
 }
 
-func (m *managedReconciler[T]) Reconcile(obj *Object[T]) error {
+func (m *managedReconciler[T]) Reconcile(obj T) error {
 	results, err := m.fn(obj)
 	for _, result := range results {
-		fmt.Printf("Creating %s/%s of type %s\n", result.GetNamespace(), result.GetName(), result.GetObjectKind())
+		fmt.Printf("Creating %s/%s of type %s\n", result.GetNamespace(), result.GetName(), result.GroupVersionKind())
 	}
 	return err
 }
 
-type ClientProvider[T any] interface {
+type ClientProvider[T HasMeta] interface {
 	ResourceId() string
 	Client(ctx *Context) (*Client[T], error)
 }
 
-func RunReconciler[T any](ctx *Context, cr ClientProvider[T], reconciler Reconciler[T]) {
-	done := ctx.RegisterComponent(fmt.Sprintf("reconciler-%s", cr.ResourceId()))
+func RunReconciler[T HasMeta](ctx *Context, cr ClientProvider[T], reconciler Reconciler[T]) {
+	id := fmt.Sprintf("reconciler-%s", cr.ResourceId())
+	done := ctx.RegisterComponent(id)
 	defer done()
 
 	cli, err := cr.Client(ctx)
@@ -46,7 +47,8 @@ func RunReconciler[T any](ctx *Context, cr ClientProvider[T], reconciler Reconci
 
 	w, err := cli.Watch(gocontext.Background())
 	if err != nil {
-		panic(err)
+		ctx.ShutdownErr(err)
+		return
 	}
 	defer w.Stop()
 
@@ -59,7 +61,7 @@ func RunReconciler[T any](ctx *Context, cr ClientProvider[T], reconciler Reconci
 			if event.Type == watch.Error {
 				panic(event.Object)
 			}
-			err := reconciler.Reconcile(event.Object)
+			err := reconciler.Reconcile(event.Object.Inner)
 			if err != nil {
 				panic(err)
 			}

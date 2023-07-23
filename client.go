@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
-type Client[T any] struct {
+type Client[T HasMeta] struct {
 	client client.WithWatch
 	scheme *runtime.Scheme
 }
@@ -19,7 +19,7 @@ type RestConfigProvider interface {
 	Config() *rest.Config
 }
 
-func NewClient[T any](ctx *Context, res ResourceMeta) (*Client[T], error) {
+func NewClient[T HasMeta](ctx *Context, res ResourceMeta) (*Client[T], error) {
 	runtimeScheme := runtime.NewScheme()
 	builder := scheme.Builder{GroupVersion: schema.GroupVersion{
 		Group:   res.gvk.Group,
@@ -27,7 +27,7 @@ func NewClient[T any](ctx *Context, res ResourceMeta) (*Client[T], error) {
 	}}
 
 	builder.SchemeBuilder.Register(func(s *runtime.Scheme) error {
-		s.AddKnownTypeWithName(res.gvk, &Object[T]{})
+		s.AddKnownTypeWithName(res.gvk, &object[T]{})
 		s.AddKnownTypeWithName(schema.GroupVersionKind{
 			Group:   res.gvk.Group,
 			Version: res.gvk.Version,
@@ -54,8 +54,8 @@ func NewClient[T any](ctx *Context, res ResourceMeta) (*Client[T], error) {
 	}, nil
 }
 
-func (c *Client[T]) Get(ctx context.Context, key client.ObjectKey) (Object[T], error) {
-	t := Object[T]{}
+func (c *Client[T]) Get(ctx context.Context, key client.ObjectKey) (object[T], error) {
+	t := object[T]{}
 
 	err := c.client.Get(ctx, key, &t)
 	if err != nil {
@@ -86,10 +86,10 @@ func (c *Client[T]) List(ctx context.Context) (ObjectList[T], error) {
 	return t, nil
 }
 
-func (c *Client[T]) Create(ctx context.Context, obj *Object[T]) error {
+func (c *Client[T]) Create(ctx context.Context, obj *object[T]) error {
 	return c.client.Create(ctx, obj)
 }
 
-func (c *Client[T]) Update(ctx context.Context, obj *Object[T]) error {
+func (c *Client[T]) Update(ctx context.Context, obj *object[T]) error {
 	return c.client.Update(ctx, obj)
 }
